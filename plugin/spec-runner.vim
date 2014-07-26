@@ -6,9 +6,29 @@ let s:COMMAND_FAILED = -1
 let s:NOT_IN_SPEC_FILE = -2
 let s:WARNING_UNABLE_TO_DETERMINE_RUNNER = 'Unable to determine correct spec runner'
 
+let g:spec_runner_available_runners = ["rspec", "teaspoon"]
+
 if ! exists('g:spec_runner_dispatcher')
   let g:spec_runner_dispatcher = '!echo "{command}" && {command}'
 endif
+
+function! g:SpecRunner#detect#rspec()
+  return match(@%, '_spec\.rb$') != -1
+endfunction
+
+function! g:SpecRunner#detect#teaspoon()
+  return s:InJavascriptFile() && s:InGemfile('teaspoon')
+endfunction
+
+function! s:DetectRunnerName()
+  for runner in g:spec_runner_available_runners
+    if call("SpecRunner#detect#" . runner)
+      return runner
+    endif
+  endfor
+
+  return s:NOT_IN_SPEC_FILE
+endfunction
 
 function! s:RunCurrentSpecFile()
   call s:RunIfInSpecFile(s:UNFOCUSED)
@@ -67,9 +87,10 @@ function! s:InSpecFile()
 endfunction
 
 function! s:Runner()
-  if s:InRspecFile()
+  let runner = s:DetectRunnerName()
+  if runner ==# "rspec"
     return 'rspec'
-  elseif s:InJavascriptFile() && s:InGemfile('teaspoon')
+  elseif runner ==# "teaspoon"
     if s:Preloader() ==# 'zeus'
       return 'rake teaspoon'
     else
